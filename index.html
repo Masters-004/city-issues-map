@@ -1,10 +1,14 @@
+# GPS + Typed Location Upgrade for City Issues Map
+
+Replace your ENTIRE `index.html` with this full upgraded version.
+
+```html
 <!DOCTYPE html>
 <html>
 <head>
   <title>City Issues Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
   <style>
@@ -50,6 +54,20 @@
       font-weight: bold;
     }
 
+    .gps-btn {
+      position: absolute;
+      top: 70px;
+      left: 60px;
+      z-index: 1000;
+      background: #111;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      border: none;
+    }
+
   </style>
 </head>
 
@@ -59,9 +77,12 @@
   📍 City Issues Live Map
 </div>
 
+<button class="gps-btn" onclick="useMyLocation()">
+  📡 Use My Location
+</button>
+
 <div id="map"></div>
 
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
@@ -86,10 +107,11 @@ const sheetURL =
 
 
 // ==========================
-// 📍 MARKER STORAGE
+// 📍 STORAGE
 // ==========================
 
 let allMarkers = [];
+let myLocationMarker = null;
 
 
 // ==========================
@@ -104,11 +126,18 @@ function getMarkerColor(type) {
     return "red";
   }
 
-  if (type.includes("water")) {
+  if (
+    type.includes("water") ||
+    type.includes("pipe") ||
+    type.includes("leak")
+  ) {
     return "blue";
   }
 
-  if (type.includes("electric")) {
+  if (
+    type.includes("electric") ||
+    type.includes("power")
+  ) {
     return "yellow";
   }
 
@@ -117,7 +146,7 @@ function getMarkerColor(type) {
 
 
 // ==========================
-// 🌍 GEOCODING FUNCTION
+// 🌍 GEOCODING
 // ==========================
 
 function geocode(location, callback) {
@@ -145,6 +174,55 @@ function geocode(location, callback) {
     console.log("❌ Geocode error:", error);
 
   });
+
+}
+
+
+// ==========================
+// 📡 USE MY LOCATION
+// ==========================
+
+function useMyLocation() {
+
+  if (!navigator.geolocation) {
+    alert("Geolocation not supported.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+
+    position => {
+
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      map.setView([lat, lng], 15);
+
+      if (myLocationMarker) {
+        map.removeLayer(myLocationMarker);
+      }
+
+      myLocationMarker = L.marker([lat, lng])
+        .addTo(map)
+        .bindPopup("📡 Your Current Location")
+        .openPopup();
+
+      console.log("GPS:", lat, lng);
+
+      alert(
+        "Your GPS location was captured.\n\nLatitude: " + lat +
+        "\nLongitude: " + lng +
+        "\n\nYou can now copy these into your form if needed."
+      );
+
+    },
+
+    error => {
+      alert("Location access denied.");
+      console.log(error);
+    }
+
+  );
 
 }
 
@@ -184,25 +262,18 @@ function loadData() {
 
       for (let i = 1; i < rows.length; i++) {
 
-        // SAFE CSV PARSING
         const cols = rows[i].split(
           /,(?=(?:(?:[^"]*"){2})*[^"]*$)/
         );
 
-        // YOUR FORM STRUCTURE
         const issueType = cols[2];
         const description = cols[3];
         const location = cols[4];
         const duration = cols[5];
 
         if (!issueType || !location) {
-
-          console.log("⚠️ Skipped row:", rows[i]);
           continue;
-
         }
-
-        console.log("📍 Processing:", issueType, location);
 
         geocode(location, (lat, lng) => {
 
@@ -284,7 +355,7 @@ function filterMarkers(type) {
 
 
 // ==========================
-// 🎛️ FILTER CONTROL UI
+// 🎛️ FILTER UI
 // ==========================
 
 const control = L.control({
@@ -341,3 +412,20 @@ setInterval(loadData, 30000);
 
 </body>
 </html>
+```
+
+After replacing the file:
+
+1. Commit changes
+2. Wait 30–60 seconds
+3. Refresh your live GitHub Pages site
+
+You will now have:
+
+* typed location support
+* GPS location capture
+* filters
+* live auto refresh
+* colored issue pins
+* clickable issue popups
+* professional dashboard layout
