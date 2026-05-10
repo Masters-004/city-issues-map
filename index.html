@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>City Issues Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <style>
+    body { margin: 0; }
+    #map { height: 100vh; width: 100%; }
+  </style>
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+
+const map = L.map('map').setView([-26.2041, 28.0473], 11);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS9XfC_CAGjV2JUkf9oM8FuvvKWZyljXpnfXSIeRyJjffdqGyJgVxE1-4fvOjsuHpOJ4QVgZzTIj4GH/pub?output=csv";
+
+function getIcon(type) {
+  type = (type || "").toLowerCase();
+
+  if (type.includes("road")) {
+    return L.icon({ iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" });
+  }
+
+  if (type.includes("water")) {
+    return L.icon({ iconUrl: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png" });
+  }
+
+  return L.icon({ iconUrl: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png" });
+}
+
+function geocode(location, cb) {
+  fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(location))
+    .then(r => r.json())
+    .then(d => {
+      if (d && d.length > 0) {
+        cb(d[0].lat, d[0].lon);
+      }
+    });
+}
+
+fetch(sheetURL)
+  .then(res => res.text())
+  .then(text => {
+
+    const rows = text.split("\n");
+
+    for (let i = 1; i < rows.length; i++) {
+
+      const cols = rows[i].split(",");
+
+      const type = cols[2];
+      const desc = cols[3];
+      const loc = cols[4];
+      const duration = cols[5];
+
+      if (!type || !loc) continue;
+
+      geocode(loc, (lat, lng) => {
+
+        const marker = L.marker([lat, lng], {
+          icon: getIcon(type)
+        }).addTo(map);
+
+        marker.bindPopup(
+          "<b>" + type + "</b><br>" +
+          desc + "<br><i>" +
+          loc + "</i><br>" +
+          (duration || "")
+        );
+
+      });
+
+    }
+
+  });
+
+</script>
+
+</body>
+</html>
