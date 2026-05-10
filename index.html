@@ -4,114 +4,338 @@
   <title>City Issues Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
   <style>
-    body { margin: 0; }
-    #map { height: 100vh; width: 100%; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+
+    .filter-box {
+      background: white;
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      line-height: 1.8;
+    }
+
+    .filter-box button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .title-box {
+      position: absolute;
+      top: 10px;
+      left: 60px;
+      z-index: 1000;
+      background: white;
+      padding: 10px 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      font-size: 18px;
+      font-weight: bold;
+    }
+
   </style>
 </head>
 
 <body>
 
+<div class="title-box">
+  📍 City Issues Live Map
+</div>
+
 <div id="map"></div>
 
+<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
 
-// 🗺️ MAP INIT
+// ==========================
+// 🗺️ CREATE MAP
+// ==========================
+
 const map = L.map('map').setView([-26.2041, 28.0473], 11);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-// 📊 YOUR GOOGLE SHEET CSV
-const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS9XfC_CAGjV2JUkf9oM8FuvvKWZyljXpnfXSIeRyJjffdqGyJgVxE1-4fvOjsuHpOJ4QVgZzTIj4GH/pub?output=csv";
 
-// 🎨 ICONS
-function getIcon(type) {
+// ==========================
+// 📊 GOOGLE SHEETS CSV
+// ==========================
+
+const sheetURL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vS9XfC_CAGjV2JUkf9oM8FuvvKWZyljXpnfXSIeRyJjffdqGyJgVxE1-4fvOjsuHpOJ4QVgZzTIj4GH/pub?output=csv";
+
+
+// ==========================
+// 📍 MARKER STORAGE
+// ==========================
+
+let allMarkers = [];
+
+
+// ==========================
+// 🎨 ISSUE COLORS
+// ==========================
+
+function getMarkerColor(type) {
+
   type = (type || "").toLowerCase();
 
   if (type.includes("road")) {
-    return L.icon({ iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" });
+    return "red";
   }
 
   if (type.includes("water")) {
-    return L.icon({ iconUrl: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png" });
+    return "blue";
   }
 
-  return L.icon({ iconUrl: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png" });
+  if (type.includes("electric")) {
+    return "yellow";
+  }
+
+  return "green";
 }
 
-// 🌍 GEOCODING
-function geocode(location, cb) {
 
-  fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(location))
-    .then(r => r.json())
-    .then(data => {
+// ==========================
+// 🌍 GEOCODING FUNCTION
+// ==========================
 
-      if (data && data.length > 0) {
-        cb(data[0].lat, data[0].lon);
-      } else {
-        console.log("❌ No location match:", location);
+function geocode(location, callback) {
+
+  fetch(
+    "https://nominatim.openstreetmap.org/search?format=json&q=" +
+    encodeURIComponent(location)
+  )
+  .then(response => response.json())
+  .then(data => {
+
+    if (data && data.length > 0) {
+
+      callback(data[0].lat, data[0].lon);
+
+    } else {
+
+      console.log("❌ Could not geocode:", location);
+
+    }
+
+  })
+  .catch(error => {
+
+    console.log("❌ Geocode error:", error);
+
+  });
+
+}
+
+
+// ==========================
+// 🧹 CLEAR OLD MARKERS
+// ==========================
+
+function clearMarkers() {
+
+  allMarkers.forEach(marker => {
+
+    map.removeLayer(marker);
+
+  });
+
+  allMarkers = [];
+
+}
+
+
+// ==========================
+// 📡 LOAD SHEET DATA
+// ==========================
+
+function loadData() {
+
+  clearMarkers();
+
+  fetch(sheetURL)
+    .then(response => response.text())
+    .then(text => {
+
+      const rows = text.trim().split("\n");
+
+      console.log("📄 Rows found:", rows.length);
+
+      for (let i = 1; i < rows.length; i++) {
+
+        // SAFE CSV PARSING
+        const cols = rows[i].split(
+          /,(?=(?:(?:[^"]*"){2})*[^"]*$)/
+        );
+
+        // YOUR FORM STRUCTURE
+        const issueType = cols[2];
+        const description = cols[3];
+        const location = cols[4];
+        const duration = cols[5];
+
+        if (!issueType || !location) {
+
+          console.log("⚠️ Skipped row:", rows[i]);
+          continue;
+
+        }
+
+        console.log("📍 Processing:", issueType, location);
+
+        geocode(location, (lat, lng) => {
+
+          const color = getMarkerColor(issueType);
+
+          const icon = L.icon({
+
+            iconUrl:
+              color === "red"
+                ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                : color === "blue"
+                ? "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                : color === "yellow"
+                ? "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
+                : "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -30]
+
+          });
+
+          const marker = L.marker([lat, lng], {
+            icon: icon
+          }).addTo(map);
+
+          marker.issueType = issueType.toLowerCase();
+
+          marker.bindPopup(
+            `
+              <b>${issueType}</b><br><br>
+              ${description || "No description"}<br><br>
+              <b>Location:</b> ${location}<br>
+              <b>Duration:</b> ${duration || "Not specified"}
+            `
+          );
+
+          allMarkers.push(marker);
+
+        });
+
       }
 
     })
-    .catch(err => console.log("GEOCODE ERROR:", err));
+    .catch(error => {
+
+      console.log("❌ CSV Fetch Error:", error);
+
+    });
 
 }
 
-// 📡 LOAD SHEET DATA (FIXED)
-fetch(sheetURL)
-  .then(res => res.text())
-  .then(text => {
 
-    const rows = text.trim().split("\n");
+// ==========================
+// 🔘 FILTERS
+// ==========================
 
-    console.log("TOTAL ROWS:", rows.length);
+function filterMarkers(type) {
 
-    for (let i = 1; i < rows.length; i++) {
+  allMarkers.forEach(marker => {
 
-      // SAFE CSV PARSING (handles commas properly)
-      const cols = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+    if (type === "all") {
 
-      const type = cols[2];
-      const desc = cols[3];
-      const loc = cols[4];
-      const duration = cols[5];
+      map.addLayer(marker);
 
-      if (!type || !loc) {
-        console.log("SKIPPED:", rows[i]);
-        continue;
-      }
+    } else if (marker.issueType.includes(type)) {
 
-      console.log("PROCESSING:", type, loc);
+      map.addLayer(marker);
 
-      geocode(loc, (lat, lng) => {
+    } else {
 
-        if (!lat || !lng) {
-          console.log("❌ Geocode failed:", loc);
-          return;
-        }
-
-        const marker = L.marker([lat, lng], {
-          icon: getIcon(type)
-        }).addTo(map);
-
-        marker.bindPopup(
-          "<b>" + type + "</b><br>" +
-          (desc || "") + "<br>" +
-          "<i>" + loc + "</i><br>" +
-          (duration || "")
-        );
-
-      });
+      map.removeLayer(marker);
 
     }
 
   });
+
+}
+
+
+// ==========================
+// 🎛️ FILTER CONTROL UI
+// ==========================
+
+const control = L.control({
+  position: 'topright'
+});
+
+control.onAdd = function () {
+
+  const div = L.DomUtil.create('div', 'filter-box');
+
+  div.innerHTML = `
+
+    <b>Issue Filters</b><br>
+
+    <button onclick="filterMarkers('all')">
+      🌍 All Issues
+    </button>
+
+    <button onclick="filterMarkers('road')">
+      🛣️ Road Issues
+    </button>
+
+    <button onclick="filterMarkers('water')">
+      💧 Water Issues
+    </button>
+
+    <button onclick="filterMarkers('electric')">
+      ⚡ Electricity
+    </button>
+
+  `;
+
+  return div;
+
+};
+
+control.addTo(map);
+
+
+// ==========================
+// 🚀 INITIAL LOAD
+// ==========================
+
+loadData();
+
+
+// ==========================
+// 🔄 AUTO REFRESH
+// ==========================
+
+setInterval(loadData, 30000);
 
 </script>
 
