@@ -20,14 +20,17 @@
 
 <script>
 
+// 🗺️ MAP INIT
 const map = L.map('map').setView([-26.2041, 28.0473], 11);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
+// 📊 YOUR GOOGLE SHEET CSV
 const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS9XfC_CAGjV2JUkf9oM8FuvvKWZyljXpnfXSIeRyJjffdqGyJgVxE1-4fvOjsuHpOJ4QVgZzTIj4GH/pub?output=csv";
 
+// 🎨 ICONS
 function getIcon(type) {
   type = (type || "").toLowerCase();
 
@@ -42,34 +45,56 @@ function getIcon(type) {
   return L.icon({ iconUrl: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png" });
 }
 
+// 🌍 GEOCODING
 function geocode(location, cb) {
+
   fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(location))
     .then(r => r.json())
-    .then(d => {
-      if (d && d.length > 0) {
-        cb(d[0].lat, d[0].lon);
+    .then(data => {
+
+      if (data && data.length > 0) {
+        cb(data[0].lat, data[0].lon);
+      } else {
+        console.log("❌ No location match:", location);
       }
-    });
+
+    })
+    .catch(err => console.log("GEOCODE ERROR:", err));
+
 }
 
+// 📡 LOAD SHEET DATA (FIXED)
 fetch(sheetURL)
   .then(res => res.text())
   .then(text => {
 
-    const rows = text.split("\n");
+    const rows = text.trim().split("\n");
+
+    console.log("TOTAL ROWS:", rows.length);
 
     for (let i = 1; i < rows.length; i++) {
 
-      const cols = rows[i].split(",");
+      // SAFE CSV PARSING (handles commas properly)
+      const cols = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
 
       const type = cols[2];
       const desc = cols[3];
       const loc = cols[4];
       const duration = cols[5];
 
-      if (!type || !loc) continue;
+      if (!type || !loc) {
+        console.log("SKIPPED:", rows[i]);
+        continue;
+      }
+
+      console.log("PROCESSING:", type, loc);
 
       geocode(loc, (lat, lng) => {
+
+        if (!lat || !lng) {
+          console.log("❌ Geocode failed:", loc);
+          return;
+        }
 
         const marker = L.marker([lat, lng], {
           icon: getIcon(type)
@@ -77,8 +102,8 @@ fetch(sheetURL)
 
         marker.bindPopup(
           "<b>" + type + "</b><br>" +
-          desc + "<br><i>" +
-          loc + "</i><br>" +
+          (desc || "") + "<br>" +
+          "<i>" + loc + "</i><br>" +
           (duration || "")
         );
 
