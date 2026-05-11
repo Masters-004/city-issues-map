@@ -240,53 +240,82 @@ window.submitReport = function () {
   const loc = document.getElementById("location").value.trim();
   const file = document.getElementById("photo").files[0];
 
-  if (!type || !loc) {
-    alert("Fill issue type + location");
+  if (!type) {
+    alert("Please enter issue type");
     return;
   }
 
-  fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(loc))
-    .then(r => r.json())
-    .then(d => {
+  const saveReport = (lat, lng, finalLocation) => {
 
-      if (!d.length) {
-        alert("Location not found");
-        return;
+    const finish = (photoBase64 = "") => {
+
+      push(reportsRef, {
+        issueType: type,
+        description: desc,
+        location: finalLocation || loc || "Unknown",
+        lat,
+        lng,
+        photo: photoBase64,
+        status: "pending",
+        createdAt: Date.now()
+      });
+
+      alert("Report submitted ✅");
+
+      document.getElementById("issueType").value = "";
+      document.getElementById("description").value = "";
+      document.getElementById("location").value = "";
+      document.getElementById("photo").value = "";
+    };
+
+    if (!file) {
+      finish("");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => finish(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  // =========================
+  // CASE 1: user typed location
+  // =========================
+  if (loc) {
+
+    fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(loc))
+      .then(res => res.json())
+      .then(data => {
+
+        if (data && data.length > 0) {
+          saveReport(parseFloat(data[0].lat), parseFloat(data[0].lon), loc);
+        } else {
+          // fallback → GPS instead of breaking
+          fallbackGPS();
+        }
+
+      })
+      .catch(() => fallbackGPS());
+
+  } else {
+    // no location typed → GPS
+    fallbackGPS();
+  }
+
+  // =========================
+  // GPS fallback (IMPORTANT FIX)
+  // =========================
+  function fallbackGPS() {
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        saveReport(pos.coords.latitude, pos.coords.longitude, "GPS Location");
+      },
+      () => {
+        alert("Cannot get location. Please type a location.");
       }
-
-      const lat = parseFloat(d[0].lat);
-      const lng = parseFloat(d[0].lon);
-
-      const save = (photoBase64 = "") => {
-        push(reportsRef, {
-          issueType: type,
-          description: desc,
-          location: loc,
-          lat,
-          lng,
-          photo: photoBase64,
-          status: "pending",
-          createdAt: Date.now()
-        });
-
-        alert("Report submitted ✅");
-
-        document.getElementById("issueType").value = "";
-        document.getElementById("description").value = "";
-        document.getElementById("location").value = "";
-        document.getElementById("photo").value = "";
-      };
-
-      if (!file) {
-        save("");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => save(reader.result);
-      reader.readAsDataURL(file);
-
-    });
+    );
+  }
 };
 
 /* RESOLVE */
