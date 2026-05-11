@@ -313,40 +313,53 @@ window.useMyLocation = function(){
 
 };
 
-/* FILTER */
-window.filterMarkers = function(type){
+// ==========================
+// FILTER SYSTEM (FIXED)
+// ==========================
+let activeFilter = "all";
 
-  markers.forEach(m=>{
+window.filterMarkers = function(type) {
+  activeFilter = (type || "all").toLowerCase();
 
-    if(type==="all") map.addLayer(m);
-    else if(m.issueType.toLowerCase().includes(type)) map.addLayer(m);
-    else map.removeLayer(m);
+  markers.forEach(marker => {
+    const match = (marker.issueType || "").toLowerCase();
 
+    const shouldShow =
+      activeFilter === "all" ||
+      match.includes(activeFilter);
+
+    if (shouldShow) {
+      if (!map.hasLayer(marker)) map.addLayer(marker);
+    } else {
+      if (map.hasLayer(marker)) map.removeLayer(marker);
+    }
   });
-
 };
 
-/* UI */
-const control = L.control({position:"topright"});
 
-control.onAdd = function(){
+// ==========================
+// CONTROL UI (FIXED + LEGEND GUARANTEED)
+// ==========================
+const control = L.control({ position: "topright" });
 
-  const div = L.DomUtil.create("div","filter-box");
+control.onAdd = function () {
+  const div = L.DomUtil.create("div", "filter-box");
 
   div.innerHTML = `
-    <b>Filters</b><br>
-    <button onclick="filterMarkers('all')">All</button>
-    <button onclick="filterMarkers('road')">Road</button>
-    <button onclick="filterMarkers('water')">Water</button>
-    <button onclick="filterMarkers('electric')">Electric</button>
+    <div style="font-weight:bold; margin-bottom:6px;">Filters</div>
+
+    <button onclick="filterMarkers('all')">🌍 All Issues</button>
+    <button onclick="filterMarkers('road')">🛣️ Road</button>
+    <button onclick="filterMarkers('water')">💧 Water</button>
+    <button onclick="filterMarkers('electric')">⚡ Electricity</button>
 
     <hr>
 
-    <b>Legend</b><br>
-    🔴 Road<br>
-    🔵 Water<br>
-    🟡 Electric<br>
-    🟢 Other
+    <div style="font-weight:bold;">Legend</div>
+    <div>🔴 Road Issue</div>
+    <div>🔵 Water Issue</div>
+    <div>🟡 Electricity Issue</div>
+    <div>🟢 Other Issue</div>
   `;
 
   return div;
