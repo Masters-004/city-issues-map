@@ -240,12 +240,47 @@ window.submitReport = function () {
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(pos => {
+  // CASE 1: USER TYPED LOCATION (Kimberley, Soweto, etc.)
+  if (locationText && locationText.trim() !== "") {
 
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
+    fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(locationText))
+      .then(res => res.json())
+      .then(data => {
 
-    // Convert image → base64
+        if (!data.length) {
+          alert("Location not found");
+          return;
+        }
+
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+
+        saveReport(lat, lng);
+
+      });
+
+  }
+
+  // CASE 2: NO LOCATION → USE GPS
+  else {
+
+    navigator.geolocation.getCurrentPosition(pos => {
+
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      saveReport(lat, lng);
+
+    }, () => {
+      alert("Allow location OR type a location");
+    });
+
+  }
+
+
+  // 🔥 SHARED SAVE FUNCTION (important fix)
+  function saveReport(lat, lng) {
+
     const reader = new FileReader();
 
     reader.onload = function () {
@@ -258,12 +293,12 @@ window.submitReport = function () {
         location: locationText || "GPS Location",
         lat,
         lng,
-        photo: photoBase64,   // ✅ NEW
+        photo: photoBase64,
         status: "pending",
         createdAt: Date.now()
       });
 
-      alert("Report submitted with GPS + photo ✅");
+      alert("Report submitted ✅");
 
       document.getElementById("issueType").value = "";
       document.getElementById("description").value = "";
@@ -277,8 +312,7 @@ window.submitReport = function () {
     } else {
       reader.onload();
     }
-
-  });
+  }
 
 };
 
