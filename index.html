@@ -260,6 +260,24 @@ window.submitReport = function(){
     const lat = parseFloat(d[0].lat);
     const lng = parseFloat(d[0].lon);
 
+    // ✅ CASE 1: NO PHOTO (IMPORTANT FIX)
+    if(!file){
+      push(reportsRef,{
+        issueType:type,
+        description:desc,
+        location:loc,
+        lat,
+        lng,
+        photo:"",
+        status:"pending",
+        createdAt:Date.now()
+      });
+
+      alert("Submitted ✅");
+      return;
+    }
+
+    // ✅ CASE 2: WITH PHOTO
     const reader = new FileReader();
 
     reader.onload = function(){
@@ -270,22 +288,21 @@ window.submitReport = function(){
         location:loc,
         lat,
         lng,
-        photo: file ? reader.result : "",
+        photo: reader.result,
         status:"pending",
         createdAt:Date.now()
       });
 
-      alert("Submitted ✅");
+      alert("Submitted with photo ✅");
 
     };
 
-    if(file) reader.readAsDataURL(file);
-    else reader.onload();
+    reader.readAsDataURL(file);
 
   });
 
 };
-
+  
 /* RESOLVE */
 window.markResolved = function(id){
   update(ref(db,"reports/"+id),{
@@ -296,20 +313,54 @@ window.markResolved = function(id){
 /* GPS */
 window.useMyLocation = function(){
 
-  navigator.geolocation.getCurrentPosition(pos=>{
+  if(!navigator.geolocation){
+    alert("Geolocation not supported");
+    return;
+  }
 
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
 
-    map.setView([lat,lng],15);
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
 
-    if(gpsMarker) map.removeLayer(gpsMarker);
+      map.setView([lat,lng],15);
 
-    gpsMarker = L.marker([lat,lng])
-    .addTo(map)
-    .bindPopup("You are here");
+      if(myLocationMarker) map.removeLayer(myLocationMarker);
 
-  });
+      myLocationMarker = L.marker([lat,lng])
+        .addTo(map)
+        .bindPopup("📡 You are here")
+        .openPopup();
+
+    },
+
+    (error) => {
+
+      console.log("GPS ERROR:", error);
+
+      if(error.code === 1){
+        alert("❌ Location blocked. Enable it in browser settings.");
+      }
+      else if(error.code === 2){
+        alert("❌ Location unavailable (network/GPS issue).");
+      }
+      else if(error.code === 3){
+        alert("❌ Location timeout. Try again.");
+      }
+      else{
+        alert("❌ Unknown GPS error");
+      }
+
+    },
+
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+
+  );
 
 };
 
