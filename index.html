@@ -1,7 +1,3 @@
-# GPS + Typed Location Upgrade for City Issues Map
-
-Replace your ENTIRE `index.html` with this full upgraded version.
-
 ```html
 <!DOCTYPE html>
 <html>
@@ -85,7 +81,48 @@ Replace your ENTIRE `index.html` with this full upgraded version.
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script>
+<script type="module">
+
+// ==========================
+// 🔥 FIREBASE IMPORTS
+// ==========================
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+import {
+  getDatabase,
+  ref,
+  push,
+  onValue
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+
+// ==========================
+// 🔥 FIREBASE CONFIG
+// ==========================
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDKpUKGcRpGCw9z03tVKbuWJiqSEk8p8hM",
+  authDomain: "streetsignal-0409.firebaseapp.com",
+  databaseURL: "https://streetsignal-0409-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "streetsignal-0409",
+  storageBucket: "streetsignal-0409.firebasestorage.app",
+  messagingSenderId: "839732414610",
+  appId: "1:839732414610:web:77851feed591796028be4b",
+  measurementId: "G-KKDWEFBC0G"
+};
+
+
+// ==========================
+// 🔥 INITIALIZE FIREBASE
+// ==========================
+
+const app = initializeApp(firebaseConfig);
+
+const database = getDatabase(app);
+
+console.log("🔥 Firebase connected");
+
 
 // ==========================
 // 🗺️ CREATE MAP
@@ -182,7 +219,7 @@ function geocode(location, callback) {
 // 📡 USE MY LOCATION
 // ==========================
 
-function useMyLocation() {
+window.useMyLocation = function () {
 
   if (!navigator.geolocation) {
     alert("Geolocation not supported.");
@@ -211,8 +248,7 @@ function useMyLocation() {
 
       alert(
         "Your GPS location was captured.\n\nLatitude: " + lat +
-        "\nLongitude: " + lng +
-        "\n\nYou can now copy these into your form if needed."
+        "\nLongitude: " + lng
       );
 
     },
@@ -331,7 +367,7 @@ function loadData() {
 // 🔘 FILTERS
 // ==========================
 
-function filterMarkers(type) {
+window.filterMarkers = function(type) {
 
   allMarkers.forEach(marker => {
 
@@ -413,19 +449,3 @@ setInterval(loadData, 30000);
 </body>
 </html>
 ```
-
-After replacing the file:
-
-1. Commit changes
-2. Wait 30–60 seconds
-3. Refresh your live GitHub Pages site
-
-You will now have:
-
-* typed location support
-* GPS location capture
-* filters
-* live auto refresh
-* colored issue pins
-* clickable issue popups
-* professional dashboard layout
