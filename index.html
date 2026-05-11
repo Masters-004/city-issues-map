@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>City Issues Map</title>
+  <title>StreetSignal Live Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -15,24 +15,6 @@
     #map {
       height: 100vh;
       width: 100%;
-    }
-
-    .filter-box {
-      background: white;
-      padding: 12px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-      line-height: 1.8;
-    }
-
-    .filter-box button {
-      width: 100%;
-      padding: 8px;
-      margin-top: 5px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
     }
 
     .title-box {
@@ -61,18 +43,74 @@
       font-size: 14px;
       border: none;
     }
+
+    .report-box {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      width: 250px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+
+    .report-box input {
+      width: 100%;
+      margin-bottom: 6px;
+      padding: 6px;
+    }
+
+    .report-box button {
+      width: 100%;
+      padding: 8px;
+      background: black;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .filter-box {
+      background: white;
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      line-height: 1.8;
+    }
+
+    .filter-box button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
   </style>
 </head>
 
 <body>
 
 <div class="title-box">
-  📍 City Issues Live Map
+  📍 StreetSignal Live Map
 </div>
 
 <button class="gps-btn" onclick="useMyLocation()">
   📡 Use My Location
 </button>
+
+<!-- REPORT FORM -->
+<div class="report-box">
+  <b>Report Issue</b><br><br>
+
+  <input id="issueType" placeholder="Issue type (road, water, electric)">
+  <input id="description" placeholder="Description">
+  <input id="location" placeholder="Location (e.g Soweto)">
+
+  <button onclick="submitReport()">Submit</button>
+</div>
 
 <div id="map"></div>
 
@@ -81,18 +119,19 @@
 <script type="module">
 
 // ==========================
-// 🔥 FIREBASE IMPORTS
+// FIREBASE IMPORTS
 // ==========================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getDatabase,
   ref,
+  push,
   onValue
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 
 // ==========================
-// 🔥 FIREBASE CONFIG
+// FIREBASE CONFIG
 // ==========================
 const firebaseConfig = {
   apiKey: "AIzaSyDKpUKGcRpGCw9z03tVKbuWJiqSEk8p8hM",
@@ -104,20 +143,15 @@ const firebaseConfig = {
   appId: "1:839732414610:web:77851feed591796028be4b"
 };
 
-
-// ==========================
-// 🔥 INIT FIREBASE
-// ==========================
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+const reportsRef = ref(database, "reports");
 
 console.log("🔥 Firebase connected");
 
-const reportsRef = ref(database, "reports");
-
 
 // ==========================
-// 🗺️ MAP
+// MAP
 // ==========================
 const map = L.map('map').setView([-26.2041, 28.0473], 11);
 
@@ -127,14 +161,14 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 
 // ==========================
-// 📍 STORAGE
+// STORAGE
 // ==========================
 let allMarkers = [];
 let myLocationMarker = null;
 
 
 // ==========================
-// 🧹 CLEAR MARKERS
+// CLEAR MARKERS
 // ==========================
 function clearMarkers() {
   allMarkers.forEach(m => map.removeLayer(m));
@@ -143,20 +177,22 @@ function clearMarkers() {
 
 
 // ==========================
-// 🎨 COLOR RULES
+// COLOR SYSTEM
 // ==========================
 function getMarkerColor(type = "") {
+
   type = type.toLowerCase();
 
   if (type.includes("road")) return "red";
   if (type.includes("water") || type.includes("pipe") || type.includes("leak")) return "blue";
   if (type.includes("electric") || type.includes("power")) return "yellow";
+
   return "green";
 }
 
 
 // ==========================
-// 🔴 LIVE FIREBASE LISTENER
+// LIVE FIREBASE MAP
 // ==========================
 onValue(reportsRef, (snapshot) => {
 
@@ -165,7 +201,7 @@ onValue(reportsRef, (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
 
-  Object.values(data).forEach((item) => {
+  Object.values(data).forEach(item => {
 
     if (!item.lat || !item.lng) return;
 
@@ -191,9 +227,9 @@ onValue(reportsRef, (snapshot) => {
     marker.issueType = (item.issueType || "").toLowerCase();
 
     marker.bindPopup(`
-      <b>${item.issueType || "Issue"}</b><br><br>
+      <b>${item.issueType}</b><br><br>
       ${item.description || "No description"}<br><br>
-      <b>Location:</b> ${item.location || "Unknown"}
+      <b>Location:</b> ${item.location}
     `);
 
     allMarkers.push(marker);
@@ -203,14 +239,56 @@ onValue(reportsRef, (snapshot) => {
 
 
 // ==========================
-// 📡 GPS
+// SUBMIT REPORT
 // ==========================
-window.useMyLocation = function () {
+window.submitReport = function () {
 
-  if (!navigator.geolocation) {
-    alert("Geolocation not supported.");
+  const issueType = document.getElementById("issueType").value;
+  const description = document.getElementById("description").value;
+  const location = document.getElementById("location").value;
+
+  if (!issueType || !location) {
+    alert("Fill issue type + location");
     return;
   }
+
+  fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(location))
+    .then(res => res.json())
+    .then(data => {
+
+      if (!data.length) {
+        alert("Location not found");
+        return;
+      }
+
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+
+      push(reportsRef, {
+        issueType: issueType.toLowerCase(),
+        description: description || "",
+        location,
+        lat,
+        lng,
+        status: "pending",
+        createdAt: Date.now()
+      });
+
+      alert("Report submitted ✅");
+
+      document.getElementById("issueType").value = "";
+      document.getElementById("description").value = "";
+      document.getElementById("location").value = "";
+
+    });
+
+};
+
+
+// ==========================
+// GPS
+// ==========================
+window.useMyLocation = function () {
 
   navigator.geolocation.getCurrentPosition(pos => {
 
@@ -223,28 +301,32 @@ window.useMyLocation = function () {
 
     myLocationMarker = L.marker([lat, lng])
       .addTo(map)
-      .bindPopup("📡 Your Current Location")
+      .bindPopup("📡 You are here")
       .openPopup();
 
-  }, () => {
-    alert("Location access denied.");
   });
 
 };
 
 
 // ==========================
-// 🔘 FILTERS
+// FILTERS
 // ==========================
 window.filterMarkers = function(type) {
 
+  type = (type || "").toLowerCase();
+
   allMarkers.forEach(marker => {
+
+    const match = marker.issueType || "";
 
     if (type === "all") {
       map.addLayer(marker);
-    } else if (marker.issueType.includes(type)) {
+    } 
+    else if (match.includes(type)) {
       map.addLayer(marker);
-    } else {
+    } 
+    else {
       map.removeLayer(marker);
     }
 
@@ -254,7 +336,7 @@ window.filterMarkers = function(type) {
 
 
 // ==========================
-// 🎛️ UI CONTROLS
+// FILTER UI
 // ==========================
 const control = L.control({ position: 'topright' });
 
@@ -263,12 +345,11 @@ control.onAdd = function () {
   const div = L.DomUtil.create('div', 'filter-box');
 
   div.innerHTML = `
-    <b>Issue Filters</b><br>
-
-    <button onclick="filterMarkers('all')">🌍 All Issues</button>
-    <button onclick="filterMarkers('road')">🛣️ Road Issues</button>
-    <button onclick="filterMarkers('water')">💧 Water Issues</button>
-    <button onclick="filterMarkers('electric')">⚡ Electricity</button>
+    <b>Filters</b><br>
+    <button onclick="filterMarkers('all')">All</button>
+    <button onclick="filterMarkers('road')">Road</button>
+    <button onclick="filterMarkers('water')">Water</button>
+    <button onclick="filterMarkers('electric')">Electric</button>
   `;
 
   return div;
