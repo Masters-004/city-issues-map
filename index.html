@@ -46,7 +46,7 @@
       border: none;
     }
 
-    /* REPORT BOX */
+    /* REPORT */
     .report-box {
       position: absolute;
       bottom: 20px;
@@ -74,13 +74,13 @@
       cursor: pointer;
     }
 
-    /* FILTERS */
+    /* FILTER */
     .filter-box {
       background: white;
       padding: 12px;
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0,0,0,0.2);
-      line-height: 1.6;
+      line-height: 1.5;
       font-size: 14px;
       min-width: 180px;
     }
@@ -92,32 +92,27 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      font-weight: bold;
       background: #f2f2f2;
+      font-weight: bold;
     }
 
     .filter-box button:hover {
       background: #ddd;
     }
 
-    hr {
-      margin: 10px 0;
-    }
-
     .resolved {
-      opacity: 0.5;
-      filter: grayscale(70%);
+      opacity: 0.4;
+      filter: grayscale(80%);
     }
-
   </style>
 </head>
 
 <body>
 
 <div class="title-box">📍 StreetSignal Live Map</div>
-
 <button class="gps-btn" onclick="useMyLocation()">📡 Use My Location</button>
 
+<!-- REPORT FORM -->
 <div class="report-box">
   <b>Report Issue</b><br><br>
 
@@ -144,6 +139,7 @@ import {
   update
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyDKpUKGcRpGCw9z03tVKbuWJiqSEk8p8hM",
   authDomain: "streetsignal-0409.firebaseapp.com",
@@ -158,42 +154,44 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const reportsRef = ref(db, "reports");
 
+/* MAP */
 const map = L.map('map').setView([-26.2041, 28.0473], 11);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap'
 }).addTo(map);
 
+/* STATE */
 let markers = [];
 let gpsMarker = null;
 
 /* CLEAR */
-function clearMarkers(){
+function clearMarkers() {
   markers.forEach(m => map.removeLayer(m));
   markers = [];
 }
 
 /* COLORS */
-function getColor(type){
+function getColor(type) {
   type = (type || "").toLowerCase();
 
-  if(type.includes("road")) return "red";
-  if(type.includes("water")) return "blue";
-  if(type.includes("electric")) return "yellow";
+  if (type.includes("road")) return "red";
+  if (type.includes("water")) return "blue";
+  if (type.includes("electric")) return "yellow";
   return "green";
 }
 
-/* LOAD DATA */
-onValue(reportsRef, (snap)=>{
+/* LOAD REPORTS */
+onValue(reportsRef, (snap) => {
 
   clearMarkers();
 
   const data = snap.val();
-  if(!data) return;
+  if (!data) return;
 
-  Object.entries(data).forEach(([id,item])=>{
+  Object.entries(data).forEach(([id, item]) => {
 
-    if(!item.lat || !item.lng) return;
+    if (!item.lat || !item.lng) return;
 
     const color = getColor(item.issueType);
     const resolved = item.status === "resolved";
@@ -201,21 +199,23 @@ onValue(reportsRef, (snap)=>{
     const icon = L.icon({
       iconUrl:
         color === "red"
-        ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
-        : color === "blue"
-        ? "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-        : color === "yellow"
-        ? "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
-        : "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
-      iconSize:[32,32],
-      iconAnchor:[16,32]
+          ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
+          : color === "blue"
+          ? "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+          : color === "yellow"
+          ? "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
+          : "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32]
     });
 
-    const marker = L.marker([item.lat,item.lng],{icon}).addTo(map);
+    const marker = L.marker([item.lat, item.lng], { icon }).addTo(map);
 
-    if(resolved){
+    if (resolved) {
       marker._icon?.classList.add("resolved");
     }
+
+    marker.issueType = item.issueType || "";
 
     marker.bindPopup(`
       <b>${item.issueType}</b><br>
@@ -227,190 +227,138 @@ onValue(reportsRef, (snap)=>{
       <button onclick="markResolved('${id}')">Mark Resolved</button>
     `);
 
-    marker.issueType = item.issueType || "";
-    marker.status = item.status || "pending";
-
     markers.push(marker);
   });
 
 });
 
-/* SUBMIT */
-window.submitReport = function(){
+/* SUBMIT (FIXED - NO REQUIRED BUG) */
+window.submitReport = function () {
 
-  const type = issueType.value;
-  const desc = description.value;
-  const loc = location.value;
-  const file = photo.files[0];
+  const type = document.getElementById("issueType").value.trim();
+  const desc = document.getElementById("description").value.trim();
+  const loc = document.getElementById("location").value.trim();
+  const file = document.getElementById("photo").files[0];
 
-  if(!type || !loc){
-    alert("Fill required fields");
+  if (!type || !loc) {
+    alert("Fill issue type + location");
     return;
   }
 
-  fetch("https://nominatim.openstreetmap.org/search?format=json&q="+encodeURIComponent(loc))
-  .then(r=>r.json())
-  .then(d=>{
+  fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(loc))
+    .then(r => r.json())
+    .then(d => {
 
-    if(!d.length){
-      alert("Location not found");
-      return;
-    }
+      if (!d.length) {
+        alert("Location not found");
+        return;
+      }
 
-    const lat = parseFloat(d[0].lat);
-    const lng = parseFloat(d[0].lon);
+      const lat = parseFloat(d[0].lat);
+      const lng = parseFloat(d[0].lon);
 
-    // ✅ CASE 1: NO PHOTO (IMPORTANT FIX)
-    if(!file){
-      push(reportsRef,{
-        issueType:type,
-        description:desc,
-        location:loc,
-        lat,
-        lng,
-        photo:"",
-        status:"pending",
-        createdAt:Date.now()
-      });
+      const save = (photoBase64 = "") => {
+        push(reportsRef, {
+          issueType: type,
+          description: desc,
+          location: loc,
+          lat,
+          lng,
+          photo: photoBase64,
+          status: "pending",
+          createdAt: Date.now()
+        });
 
-      alert("Submitted ✅");
-      return;
-    }
+        alert("Report submitted ✅");
 
-    // ✅ CASE 2: WITH PHOTO
-    const reader = new FileReader();
+        document.getElementById("issueType").value = "";
+        document.getElementById("description").value = "";
+        document.getElementById("location").value = "";
+        document.getElementById("photo").value = "";
+      };
 
-    reader.onload = function(){
+      if (!file) {
+        save("");
+        return;
+      }
 
-      push(reportsRef,{
-        issueType:type,
-        description:desc,
-        location:loc,
-        lat,
-        lng,
-        photo: reader.result,
-        status:"pending",
-        createdAt:Date.now()
-      });
+      const reader = new FileReader();
+      reader.onload = () => save(reader.result);
+      reader.readAsDataURL(file);
 
-      alert("Submitted with photo ✅");
-
-    };
-
-    reader.readAsDataURL(file);
-
-  });
-
+    });
 };
-  
+
 /* RESOLVE */
-window.markResolved = function(id){
-  update(ref(db,"reports/"+id),{
-    status:"resolved"
+window.markResolved = function (id) {
+  update(ref(db, "reports/" + id), {
+    status: "resolved"
   });
 };
 
-/* GPS */
-window.useMyLocation = function(){
+/* GPS FIXED (marker ALWAYS shows) */
+window.useMyLocation = function () {
 
-  if(!navigator.geolocation){
-    alert("Geolocation not supported");
+  if (!navigator.geolocation) {
+    alert("GPS not supported");
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
+  navigator.geolocation.getCurrentPosition((pos) => {
 
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
 
-      map.setView([lat,lng],15);
+    map.setView([lat, lng], 15);
 
-      if(myLocationMarker) map.removeLayer(myLocationMarker);
+    if (gpsMarker) map.removeLayer(gpsMarker);
 
-      myLocationMarker = L.marker([lat,lng])
-        .addTo(map)
-        .bindPopup("📡 You are here")
-        .openPopup();
+    gpsMarker = L.marker([lat, lng])
+      .addTo(map)
+      .bindPopup("📡 You are here")
+      .openPopup();
 
-    },
-
-    (error) => {
-
-      console.log("GPS ERROR:", error);
-
-      if(error.code === 1){
-        alert("❌ Location blocked. Enable it in browser settings.");
-      }
-      else if(error.code === 2){
-        alert("❌ Location unavailable (network/GPS issue).");
-      }
-      else if(error.code === 3){
-        alert("❌ Location timeout. Try again.");
-      }
-      else{
-        alert("❌ Unknown GPS error");
-      }
-
-    },
-
-    {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
-    }
-
-  );
-
+  }, () => {
+    alert("Enable location permissions in browser");
+  });
 };
 
-// ==========================
-// FILTER SYSTEM (FIXED)
-// ==========================
-let activeFilter = "all";
-
+/* FILTER FIXED */
 window.filterMarkers = function(type) {
-  activeFilter = (type || "all").toLowerCase();
 
-  markers.forEach(marker => {
-    const match = (marker.issueType || "").toLowerCase();
+  type = (type || "all").toLowerCase();
 
-    const shouldShow =
-      activeFilter === "all" ||
-      match.includes(activeFilter);
+  markers.forEach(m => {
+    const match = (m.issueType || "").toLowerCase();
 
-    if (shouldShow) {
-      if (!map.hasLayer(marker)) map.addLayer(marker);
+    if (type === "all" || match.includes(type)) {
+      if (!map.hasLayer(m)) map.addLayer(m);
     } else {
-      if (map.hasLayer(marker)) map.removeLayer(marker);
+      if (map.hasLayer(m)) map.removeLayer(m);
     }
   });
 };
 
-
-// ==========================
-// CONTROL UI (FIXED + LEGEND GUARANTEED)
-// ==========================
+/* UI */
 const control = L.control({ position: "topright" });
 
 control.onAdd = function () {
   const div = L.DomUtil.create("div", "filter-box");
 
   div.innerHTML = `
-    <div style="font-weight:bold; margin-bottom:6px;">Filters</div>
-
-    <button onclick="filterMarkers('all')">🌍 All Issues</button>
-    <button onclick="filterMarkers('road')">🛣️ Road</button>
-    <button onclick="filterMarkers('water')">💧 Water</button>
-    <button onclick="filterMarkers('electric')">⚡ Electricity</button>
+    <b>Filters</b><br>
+    <button onclick="filterMarkers('all')">All</button>
+    <button onclick="filterMarkers('road')">Road</button>
+    <button onclick="filterMarkers('water')">Water</button>
+    <button onclick="filterMarkers('electric')">Electric</button>
 
     <hr>
 
-    <div style="font-weight:bold;">Legend</div>
-    <div>🔴 Road Issue</div>
-    <div>🔵 Water Issue</div>
-    <div>🟡 Electricity Issue</div>
-    <div>🟢 Other Issue</div>
+    <b>Legend</b><br>
+    🔴 Road<br>
+    🔵 Water<br>
+    🟡 Electricity<br>
+    🟢 Other
   `;
 
   return div;
