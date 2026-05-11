@@ -123,7 +123,8 @@
   <input id="issueType" placeholder="Issue type (road, water, electric)">
   <input id="description" placeholder="Description">
   <input id="location" placeholder="Location (e.g Soweto)">
-
+  <input id="photo" type="file" accept="image/*">
+  
   <button onclick="submitReport()">Submit</button>
 </div>
 
@@ -212,10 +213,15 @@ onValue(reportsRef, (snapshot) => {
     marker.issueType = (item.issueType || "").toLowerCase();
 
     marker.bindPopup(`
-      <b>${item.issueType}</b><br><br>
-      ${item.description || "No description"}<br><br>
-      <b>Location:</b> ${item.location}
-    `);
+  <b>${item.issueType}</b><br><br>
+
+  ${item.photo ? `<img src="${item.photo}" width="200"><br><br>` : ""}
+
+  ${item.description || "No description"}<br><br>
+
+  <b>Location:</b> ${item.location}<br>
+  <b>GPS:</b> ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}
+`);
 
     allMarkers.push(marker);
   });
@@ -226,42 +232,53 @@ window.submitReport = function () {
 
   const issueType = document.getElementById("issueType").value;
   const description = document.getElementById("description").value;
-  const location = document.getElementById("location").value;
+  const locationText = document.getElementById("location").value;
+  const photoFile = document.getElementById("photo").files[0];
 
-  if (!issueType || !location) {
-    alert("Fill issue type + location");
+  if (!issueType) {
+    alert("Fill issue type");
     return;
   }
 
-  fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(location))
-    .then(res => res.json())
-    .then(data => {
+  navigator.geolocation.getCurrentPosition(pos => {
 
-      if (!data.length) {
-        alert("Location not found");
-        return;
-      }
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
 
-      const lat = parseFloat(data[0].lat);
-      const lng = parseFloat(data[0].lon);
+    // Convert image → base64
+    const reader = new FileReader();
+
+    reader.onload = function () {
+
+      const photoBase64 = photoFile ? reader.result : "";
 
       push(reportsRef, {
         issueType: issueType.toLowerCase(),
         description: description || "",
-        location,
+        location: locationText || "GPS Location",
         lat,
         lng,
+        photo: photoBase64,   // ✅ NEW
         status: "pending",
         createdAt: Date.now()
       });
 
-      alert("Report submitted ✅");
+      alert("Report submitted with GPS + photo ✅");
 
       document.getElementById("issueType").value = "";
       document.getElementById("description").value = "";
       document.getElementById("location").value = "";
+      document.getElementById("photo").value = "";
 
-    });
+    };
+
+    if (photoFile) {
+      reader.readAsDataURL(photoFile);
+    } else {
+      reader.onload();
+    }
+
+  });
 
 };
 
