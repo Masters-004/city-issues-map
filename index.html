@@ -271,15 +271,22 @@ window.submitReport = function () {
       const lat = parseFloat(data[0].lat);
       const lng = parseFloat(data[0].lon);
 
-      push(reportsRef, {
-        issueType: issueType.toLowerCase(),
-        description: description || "",
-        location,
-        lat,
-        lng,
-        status: "pending",
-        createdAt: Date.now()
-      });
+push(reportsRef, {
+  id: Date.now(),                         // unique report ID
+  issueType: issueType.toLowerCase(),
+  description: description || "",
+  location,
+  lat,
+  lng,
+
+  status: "pending",                      // pending → verified → fixed
+  priority: "normal",                     // normal | high | critical
+
+  reportedBy: "citizen",                 // later: user accounts
+  createdAt: new Date().toISOString(),
+
+  verified: false                        // admin control flag
+});
 
       alert("Report submitted ✅");
 
