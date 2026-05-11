@@ -1,8 +1,3 @@
-# GPS + Typed Location Upgrade for City Issues Map
-
-Replace your ENTIRE `index.html` with this full upgraded version.
-
-```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -64,7 +59,6 @@ Replace your ENTIRE `index.html` with this full upgraded version.
       padding: 10px 15px;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
       border: none;
     }
 
@@ -73,13 +67,9 @@ Replace your ENTIRE `index.html` with this full upgraded version.
 
 <body>
 
-<div class="title-box">
-  📍 City Issues Live Map
-</div>
+<div class="title-box">📍 City Issues Live Map</div>
 
-<button class="gps-btn" onclick="useMyLocation()">
-  📡 Use My Location
-</button>
+<button class="gps-btn" onclick="useMyLocation()">📡 Use My Location</button>
 
 <div id="map"></div>
 
@@ -87,200 +77,114 @@ Replace your ENTIRE `index.html` with this full upgraded version.
 
 <script>
 
-// ==========================
-// 🗺️ CREATE MAP
-// ==========================
-
+// ================= MAP =================
 const map = L.map('map').setView([-26.2041, 28.0473], 11);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-
-// ==========================
-// 📊 GOOGLE SHEETS CSV
-// ==========================
-
+// ================= DATA =================
 const sheetURL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vS9XfC_CAGjV2JUkf9oM8FuvvKWZyljXpnfXSIeRyJjffdqGyJgVxE1-4fvOjsuHpOJ4QVgZzTIj4GH/pub?output=csv";
-
-
-// ==========================
-// 📍 STORAGE
-// ==========================
 
 let allMarkers = [];
 let myLocationMarker = null;
 
-
-// ==========================
-// 🎨 ISSUE COLORS
-// ==========================
-
+// ================= COLORS =================
 function getMarkerColor(type) {
 
   type = (type || "").toLowerCase();
 
-  if (type.includes("road")) {
-    return "red";
-  }
+  if (type.includes("road")) return "red";
 
   if (
     type.includes("water") ||
     type.includes("pipe") ||
     type.includes("leak")
-  ) {
-    return "blue";
-  }
+  ) return "blue";
 
   if (
     type.includes("electric") ||
     type.includes("power")
-  ) {
-    return "yellow";
-  }
+  ) return "yellow";
 
   return "green";
 }
 
-
-// ==========================
-// 🌍 GEOCODING
-// ==========================
-
+// ================= GEOCODE =================
 function geocode(location, callback) {
 
-  fetch(
-    "https://nominatim.openstreetmap.org/search?format=json&q=" +
-    encodeURIComponent(location)
-  )
-  .then(response => response.json())
-  .then(data => {
+  fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(location))
+    .then(r => r.json())
+    .then(data => {
 
-    if (data && data.length > 0) {
-
-      callback(data[0].lat, data[0].lon);
-
-    } else {
-
-      console.log("❌ Could not geocode:", location);
-
-    }
-
-  })
-  .catch(error => {
-
-    console.log("❌ Geocode error:", error);
-
-  });
-
-}
-
-
-// ==========================
-// 📡 USE MY LOCATION
-// ==========================
-
-function useMyLocation() {
-
-  if (!navigator.geolocation) {
-    alert("Geolocation not supported.");
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-
-    position => {
-
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-
-      map.setView([lat, lng], 15);
-
-      if (myLocationMarker) {
-        map.removeLayer(myLocationMarker);
+      if (data && data.length > 0) {
+        callback(data[0].lat, data[0].lon);
       }
 
-      myLocationMarker = L.marker([lat, lng])
-        .addTo(map)
-        .bindPopup("📡 Your Current Location")
-        .openPopup();
-
-      console.log("GPS:", lat, lng);
-
-      alert(
-        "Your GPS location was captured.\n\nLatitude: " + lat +
-        "\nLongitude: " + lng +
-        "\n\nYou can now copy these into your form if needed."
-      );
-
-    },
-
-    error => {
-      alert("Location access denied.");
-      console.log(error);
-    }
-
-  );
+    });
 
 }
 
+// ================= GPS =================
+function useMyLocation() {
 
-// ==========================
-// 🧹 CLEAR OLD MARKERS
-// ==========================
+  navigator.geolocation.getCurrentPosition(pos => {
 
-function clearMarkers() {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
 
-  allMarkers.forEach(marker => {
+    map.setView([lat, lng], 15);
 
-    map.removeLayer(marker);
+    if (myLocationMarker) {
+      map.removeLayer(myLocationMarker);
+    }
+
+    myLocationMarker = L.marker([lat, lng])
+      .addTo(map)
+      .bindPopup("📡 Your Location")
+      .openPopup();
 
   });
 
+}
+
+// ================= CLEAR =================
+function clearMarkers() {
+
+  allMarkers.forEach(m => map.removeLayer(m));
   allMarkers = [];
 
 }
 
-
-// ==========================
-// 📡 LOAD SHEET DATA
-// ==========================
-
+// ================= LOAD DATA =================
 function loadData() {
 
   clearMarkers();
 
   fetch(sheetURL)
-    .then(response => response.text())
+    .then(r => r.text())
     .then(text => {
 
       const rows = text.trim().split("\n");
 
-      console.log("📄 Rows found:", rows.length);
-
       for (let i = 1; i < rows.length; i++) {
 
-        const cols = rows[i].split(
-          /,(?=(?:(?:[^"]*"){2})*[^"]*$)/
-        );
+        const cols = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
 
-        const issueType = cols[2];
-        const description = cols[3];
-        const location = cols[4];
+        const type = cols[2];
+        const desc = cols[3];
+        const loc = cols[4];
         const duration = cols[5];
 
-        if (!issueType || !location) {
-          continue;
-        }
+        if (!type || !loc) continue;
 
-        geocode(location, (lat, lng) => {
+        geocode(loc, (lat, lng) => {
 
-          const color = getMarkerColor(issueType);
+          const color = getMarkerColor(type);
 
           const icon = L.icon({
-
             iconUrl:
               color === "red"
                 ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
@@ -291,24 +195,16 @@ function loadData() {
                 : "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
 
             iconSize: [32, 32],
-            iconAnchor: [16, 32],
-            popupAnchor: [0, -30]
-
+            iconAnchor: [16, 32]
           });
 
-          const marker = L.marker([lat, lng], {
-            icon: icon
-          }).addTo(map);
-
-          marker.issueType = issueType.toLowerCase();
+          const marker = L.marker([lat, lng], { icon }).addTo(map);
 
           marker.bindPopup(
-            `
-              <b>${issueType}</b><br><br>
-              ${description || "No description"}<br><br>
-              <b>Location:</b> ${location}<br>
-              <b>Duration:</b> ${duration || "Not specified"}
-            `
+            `<b>${type}</b><br><br>
+            ${desc || ""}<br><br>
+            <b>Location:</b> ${loc}<br>
+            <b>Duration:</b> ${duration || ""}`
           );
 
           allMarkers.push(marker);
@@ -317,75 +213,36 @@ function loadData() {
 
       }
 
-    })
-    .catch(error => {
-
-      console.log("❌ CSV Fetch Error:", error);
-
     });
 
 }
 
+// ================= FILTER =================
+function filter(type) {
 
-// ==========================
-// 🔘 FILTERS
-// ==========================
+  allMarkers.forEach(m => {
 
-function filterMarkers(type) {
-
-  allMarkers.forEach(marker => {
-
-    if (type === "all") {
-
-      map.addLayer(marker);
-
-    } else if (marker.issueType.includes(type)) {
-
-      map.addLayer(marker);
-
-    } else {
-
-      map.removeLayer(marker);
-
-    }
+    if (type === "all") map.addLayer(m);
+    else if (m.issueType?.includes(type)) map.addLayer(m);
+    else map.removeLayer(m);
 
   });
 
 }
 
-
-// ==========================
-// 🎛️ FILTER UI
-// ==========================
-
-const control = L.control({
-  position: 'topright'
-});
+// ================= UI =================
+const control = L.control({ position: 'topright' });
 
 control.onAdd = function () {
 
   const div = L.DomUtil.create('div', 'filter-box');
 
   div.innerHTML = `
-
-    <b>Issue Filters</b><br>
-
-    <button onclick="filterMarkers('all')">
-      🌍 All Issues
-    </button>
-
-    <button onclick="filterMarkers('road')">
-      🛣️ Road Issues
-    </button>
-
-    <button onclick="filterMarkers('water')">
-      💧 Water Issues
-    </button>
-
-    <button onclick="filterMarkers('electric')">
-      ⚡ Electricity
-    </button>
-
+    <b>Filters</b><br>
+    <button onclick="filter('all')">All</button>
+    <button onclick="filter('road')">Road</button>
+    <button onclick="filter('water')">Water</button>
+    <button onclick="filter('electric')">Electric</button>
   `;
 
   return div;
@@ -394,38 +251,11 @@ control.onAdd = function () {
 
 control.addTo(map);
 
-
-// ==========================
-// 🚀 INITIAL LOAD
-// ==========================
-
+// ================= START =================
 loadData();
-
-
-// ==========================
-// 🔄 AUTO REFRESH
-// ==========================
-
 setInterval(loadData, 30000);
 
 </script>
 
 </body>
 </html>
-```
-
-After replacing the file:
-
-1. Commit changes
-2. Wait 30–60 seconds
-3. Refresh your live GitHub Pages site
-
-You will now have:
-
-* typed location support
-* GPS location capture
-* filters
-* live auto refresh
-* colored issue pins
-* clickable issue popups
-* professional dashboard layout
