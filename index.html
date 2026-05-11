@@ -17,7 +17,6 @@
       width: 100%;
     }
 
-    /* TITLE */
     .title-box {
       position: absolute;
       top: 10px;
@@ -31,7 +30,6 @@
       font-weight: bold;
     }
 
-    /* GPS */
     .gps-btn {
       position: absolute;
       top: 70px;
@@ -46,7 +44,6 @@
       border: none;
     }
 
-    /* REPORT FORM → BOTTOM RIGHT (FIXED) */
     .report-box {
       position: absolute;
       bottom: 20px;
@@ -74,7 +71,6 @@
       cursor: pointer;
     }
 
-    /* FILTERS TOP RIGHT */
     .filter-box {
       background: white;
       padding: 12px;
@@ -108,23 +104,18 @@
 
 <body>
 
-<div class="title-box">
-  📍 StreetSignal Live Map
-</div>
+<div class="title-box">📍 StreetSignal Live Map</div>
 
-<button class="gps-btn" onclick="useMyLocation()">
-  📡 Use My Location
-</button>
+<button class="gps-btn" onclick="useMyLocation()">📡 Use My Location</button>
 
-<!-- REPORT FORM (BOTTOM RIGHT NOW) -->
 <div class="report-box">
   <b>Report Issue</b><br><br>
 
   <input id="issueType" placeholder="Issue type (road, water, electric)">
   <input id="description" placeholder="Description">
-  <input id="location" placeholder="Location (e.g Soweto)">
+  <input id="location" placeholder="Location (optional)">
   <input id="photo" type="file" accept="image/*">
-  
+
   <button onclick="submitReport()">Submit</button>
 </div>
 
@@ -153,8 +144,8 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
-const reportsRef = ref(database, "reports");
+const db = getDatabase(app);
+const reportsRef = ref(db, "reports");
 
 const map = L.map('map').setView([-26.2041, 28.0473], 11);
 
@@ -162,21 +153,19 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-let allMarkers = [];
+let markers = [];
 let myLocationMarker = null;
 
 function clearMarkers() {
-  allMarkers.forEach(m => map.removeLayer(m));
-  allMarkers = [];
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
 }
 
-function getMarkerColor(type = "") {
+function getColor(type = "") {
   type = type.toLowerCase();
-
   if (type.includes("road")) return "red";
-  if (type.includes("water") || type.includes("pipe") || type.includes("leak")) return "blue";
-  if (type.includes("electric") || type.includes("power")) return "yellow";
-
+  if (type.includes("water")) return "blue";
+  if (type.includes("electric")) return "yellow";
   return "green";
 }
 
@@ -191,7 +180,8 @@ onValue(reportsRef, (snapshot) => {
 
     if (!item.lat || !item.lng) return;
 
-    const color = getMarkerColor(item.issueType);
+    const status = item.status || "pending";
+    const color = status === "resolved" ? "green" : getColor(item.issueType);
 
     const icon = L.icon({
       iconUrl:
@@ -202,7 +192,6 @@ onValue(reportsRef, (snapshot) => {
           : color === "yellow"
           ? "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
           : "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
-
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -30]
@@ -213,21 +202,23 @@ onValue(reportsRef, (snapshot) => {
     marker.issueType = (item.issueType || "").toLowerCase();
 
     marker.bindPopup(`
-  <b>${item.issueType}</b><br><br>
+      <b>${item.issueType}</b><br><br>
 
-  ${item.photo ? `<img src="${item.photo}" width="200"><br><br>` : ""}
+      ${item.photo ? `<img src="${item.photo}" width="200"><br><br>` : ""}
 
-  ${item.description || "No description"}<br><br>
+      ${item.description || ""}<br><br>
 
-  <b>Location:</b> ${item.location}<br>
-  <b>GPS:</b> ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}
-`);
+      <b>Location:</b> ${item.location}<br>
+      <b>Status:</b> ${status.toUpperCase()}<br>
+      <b>GPS:</b> ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}
+    `);
 
-    allMarkers.push(marker);
+    markers.push(marker);
   });
 
 });
 
+// FIXED SAVE SYSTEM (GPS + typed location)
 window.submitReport = function () {
 
   const issueType = document.getElementById("issueType").value;
@@ -235,57 +226,13 @@ window.submitReport = function () {
   const locationText = document.getElementById("location").value;
   const photoFile = document.getElementById("photo").files[0];
 
-  if (!issueType) {
-    alert("Fill issue type");
-    return;
-  }
+  if (!issueType) return alert("Enter issue type");
 
-  // CASE 1: USER TYPED LOCATION (Kimberley, Soweto, etc.)
-  if (locationText && locationText.trim() !== "") {
-
-    fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(locationText))
-      .then(res => res.json())
-      .then(data => {
-
-        if (!data.length) {
-          alert("Location not found");
-          return;
-        }
-
-        const lat = parseFloat(data[0].lat);
-        const lng = parseFloat(data[0].lon);
-
-        saveReport(lat, lng);
-
-      });
-
-  }
-
-  // CASE 2: NO LOCATION → USE GPS
-  else {
-
-    navigator.geolocation.getCurrentPosition(pos => {
-
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      saveReport(lat, lng);
-
-    }, () => {
-      alert("Allow location OR type a location");
-    });
-
-  }
-
-
-  // 🔥 SHARED SAVE FUNCTION (important fix)
-  function saveReport(lat, lng) {
+  function save(lat, lng) {
 
     const reader = new FileReader();
 
     reader.onload = function () {
-
-      const photoBase64 = photoFile ? reader.result : "";
 
       push(reportsRef, {
         issueType: issueType.toLowerCase(),
@@ -293,25 +240,38 @@ window.submitReport = function () {
         location: locationText || "GPS Location",
         lat,
         lng,
-        photo: photoBase64,
+        photo: photoFile ? reader.result : "",
         status: "pending",
         createdAt: Date.now()
       });
 
       alert("Report submitted ✅");
 
-      document.getElementById("issueType").value = "";
-      document.getElementById("description").value = "";
-      document.getElementById("location").value = "";
-      document.getElementById("photo").value = "";
-
     };
 
-    if (photoFile) {
-      reader.readAsDataURL(photoFile);
-    } else {
-      reader.onload();
-    }
+    if (photoFile) reader.readAsDataURL(photoFile);
+    else reader.onload();
+
+  }
+
+  if (locationText.trim()) {
+
+    fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(locationText))
+      .then(r => r.json())
+      .then(data => {
+
+        if (!data.length) return alert("Location not found");
+
+        save(parseFloat(data[0].lat), parseFloat(data[0].lon));
+
+      });
+
+  } else {
+
+    navigator.geolocation.getCurrentPosition(pos => {
+      save(pos.coords.latitude, pos.coords.longitude);
+    });
+
   }
 
 };
@@ -338,19 +298,13 @@ window.useMyLocation = function () {
 
 window.filterMarkers = function(type) {
 
-  type = (type || "").toLowerCase();
+  type = type.toLowerCase();
 
-  allMarkers.forEach(marker => {
+  markers.forEach(m => {
 
-    const match = marker.issueType || "";
-
-    if (type === "all") {
-      map.addLayer(marker);
-    } else if (match.includes(type)) {
-      map.addLayer(marker);
-    } else {
-      map.removeLayer(marker);
-    }
+    if (type === "all") map.addLayer(m);
+    else if ((m.issueType || "").includes(type)) map.addLayer(m);
+    else map.removeLayer(m);
 
   });
 
@@ -364,19 +318,10 @@ control.onAdd = function () {
 
   div.innerHTML = `
     <b>Filters</b><br>
-
-    <button onclick="filterMarkers('all')">🌍 All Issues</button>
-    <button onclick="filterMarkers('road')">🛣️ Road</button>
-    <button onclick="filterMarkers('water')">💧 Water</button>
-    <button onclick="filterMarkers('electric')">⚡ Electricity</button>
-
-    <hr>
-
-    <b>Legend</b><br>
-    🔴 Road Issue<br>
-    🔵 Water Issue<br>
-    🟡 Electricity Issue<br>
-    🟢 Other Issue
+    <button onclick="filterMarkers('all')">All</button>
+    <button onclick="filterMarkers('road')">Road</button>
+    <button onclick="filterMarkers('water')">Water</button>
+    <button onclick="filterMarkers('electric')">Electric</button>
   `;
 
   return div;
