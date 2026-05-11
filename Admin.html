@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>StreetSignal Admin Panel</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+
+    body{
+      margin:0;
+      padding:20px;
+      background:#f2f2f2;
+      font-family:Arial,sans-serif;
+    }
+
+    h1{
+      margin-bottom:20px;
+    }
+
+    .report-card{
+      background:white;
+      padding:15px;
+      border-radius:12px;
+      margin-bottom:20px;
+      box-shadow:0 0 10px rgba(0,0,0,0.15);
+    }
+
+    .report-card img{
+      width:100%;
+      max-width:300px;
+      border-radius:10px;
+      margin-top:10px;
+      margin-bottom:10px;
+    }
+
+    .status{
+      display:inline-block;
+      padding:5px 10px;
+      border-radius:6px;
+      font-size:13px;
+      font-weight:bold;
+      margin-top:10px;
+    }
+
+    .pending{
+      background:#ffcc00;
+    }
+
+    .resolved{
+      background:#33cc66;
+      color:white;
+    }
+
+    button{
+      padding:10px 15px;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+      margin-right:10px;
+      margin-top:10px;
+      font-weight:bold;
+    }
+
+    .resolve-btn{
+      background:#28a745;
+      color:white;
+    }
+
+    .delete-btn{
+      background:#dc3545;
+      color:white;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<h1>🛠️ StreetSignal Admin Dashboard</h1>
+
+<div id="reportsContainer"></div>
+
+<script type="module">
+
+// ==========================
+// FIREBASE IMPORTS
+// ==========================
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+import {
+  getDatabase,
+  ref,
+  onValue,
+  remove,
+  update
+}
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+
+// ==========================
+// FIREBASE CONFIG
+// ==========================
+
+const firebaseConfig = {
+
+  apiKey: "AIzaSyDKpUKGcRpGCw9z03tVKbuWJiqSEk8p8hM",
+
+  authDomain: "streetsignal-0409.firebaseapp.com",
+
+  databaseURL:
+  "https://streetsignal-0409-default-rtdb.europe-west1.firebasedatabase.app",
+
+  projectId: "streetsignal-0409",
+
+  storageBucket:
+  "streetsignal-0409.firebasestorage.app",
+
+  messagingSenderId: "839732414610",
+
+  appId:
+  "1:839732414610:web:77851feed591796028be4b"
+};
+
+
+// ==========================
+// INIT FIREBASE
+// ==========================
+
+const app = initializeApp(firebaseConfig);
+
+const database = getDatabase(app);
+
+const reportsRef = ref(database, "reports");
+
+const container =
+document.getElementById("reportsContainer");
+
+
+// ==========================
+// LOAD REPORTS LIVE
+// ==========================
+
+onValue(reportsRef, (snapshot) => {
+
+  container.innerHTML = "";
+
+  const data = snapshot.val();
+
+  if (!data) {
+
+    container.innerHTML =
+    "<p>No reports found.</p>";
+
+    return;
+  }
+
+  Object.entries(data).reverse().forEach(([id, item]) => {
+
+    const card =
+    document.createElement("div");
+
+    card.className = "report-card";
+
+    const status =
+    item.status || "pending";
+
+    card.innerHTML = `
+
+      <h3>${item.issueType || "Issue"}</h3>
+
+      <p>
+        <b>Description:</b><br>
+        ${item.description || "No description"}
+      </p>
+
+      <p>
+        <b>Location:</b><br>
+        ${item.location || "Unknown"}
+      </p>
+
+      <p>
+        <b>GPS:</b><br>
+        ${item.lat || "-"},
+        ${item.lng || "-"}
+      </p>
+
+      <p>
+        <b>Submitted:</b><br>
+        ${
+          item.createdAt
+          ? new Date(item.createdAt)
+            .toLocaleString()
+          : "Unknown"
+        }
+      </p>
+
+      ${
+        item.photo
+        ? `<img src="${item.photo}">`
+        : ""
+      }
+
+      <br>
+
+      <span class="status ${status}">
+        ${status.toUpperCase()}
+      </span>
+
+      <br>
+
+      <button
+        class="resolve-btn"
+        onclick="resolveReport('${id}')">
+
+        ✅ Mark Resolved
+
+      </button>
+
+      <button
+        class="delete-btn"
+        onclick="deleteReport('${id}')">
+
+        ❌ Delete
+
+      </button>
+
+    `;
+
+    container.appendChild(card);
+
+  });
+
+});
+
+
+// ==========================
+// RESOLVE REPORT
+// ==========================
+
+window.resolveReport = function(id){
+
+  update(ref(database, "reports/" + id), {
+
+    status: "resolved"
+
+  });
+
+};
+
+
+// ==========================
+// DELETE REPORT
+// ==========================
+
+window.deleteReport = function(id){
+
+  const confirmDelete =
+  confirm("Delete this report?");
+
+  if(!confirmDelete) return;
+
+  remove(ref(database, "reports/" + id));
+
+};
+
+</script>
+
+</body>
+</html>
