@@ -11,54 +11,61 @@
 
     #map { height:100vh; width:100%; }
 
-    .title-box{
+    .title-box {
       position:absolute; top:10px; left:60px;
-      z-index:1000; background:white;
-      padding:10px 15px;
-      border-radius:10px;
+      background:white; padding:10px 15px;
+      border-radius:10px; z-index:1000;
+      box-shadow:0 0 10px rgba(0,0,0,0.2);
       font-weight:bold;
     }
 
-    .gps-btn{
+    .gps-btn {
       position:absolute; top:70px; left:60px;
-      z-index:1000; background:#111;
-      color:#fff; border:none;
+      z-index:1000;
+      background:#111; color:white;
       padding:10px 15px;
       border-radius:8px;
+      border:none;
       cursor:pointer;
     }
 
-    .report-box{
+    .report-box {
       position:absolute; bottom:20px; right:20px;
-      z-index:1000; background:white;
+      z-index:1000;
+      background:white;
       padding:15px;
-      width:260px;
       border-radius:10px;
-      box-shadow:0 0 10px rgba(0,0,0,0.2);
+      width:260px;
+      box-shadow:0 0 10px rgba(0,0,0,0.25);
     }
 
-    .report-box input{
-      width:100%; padding:6px; margin-bottom:6px;
+    .report-box input {
+      width:100%;
+      margin-bottom:6px;
+      padding:6px;
     }
 
-    .report-box button{
-      width:100%; padding:8px;
-      background:black; color:white;
-      border:none; cursor:pointer;
+    .report-box button {
+      width:100%;
+      padding:8px;
+      background:black;
+      color:white;
+      border:none;
+      cursor:pointer;
     }
 
-    /* FILTER BOX (FIXED STABLE STYLE) */
-    .filter-box{
+    /* FILTER BOX */
+    .filter-box {
       background:white;
       padding:12px;
       border-radius:10px;
-      font-size:14px;
-      line-height:1.4;
       box-shadow:0 0 10px rgba(0,0,0,0.2);
+      font-size:14px;
+      line-height:1.5;
       min-width:180px;
     }
 
-    .filter-box button{
+    .filter-box button {
       width:100%;
       margin-top:5px;
       padding:6px;
@@ -69,14 +76,26 @@
       font-weight:bold;
     }
 
-    .filter-box button:hover{
-      background:#ddd;
+    .filter-box button:hover { background:#ddd; }
+
+    .dot {
+      height:10px;
+      width:10px;
+      border-radius:50%;
+      display:inline-block;
+      margin-right:6px;
     }
 
-    .resolved{
-      opacity:0.4;
+    .red { background:red; }
+    .blue { background:blue; }
+    .yellow { background:gold; }
+    .green { background:green; }
+
+    .resolved {
+      opacity:0.5;
       filter:grayscale(80%);
     }
+
   </style>
 </head>
 
@@ -91,7 +110,7 @@
   <input id="issueType" placeholder="Issue type">
   <input id="description" placeholder="Description">
   <input id="location" placeholder="Location">
-  <input id="photo" type="file">
+  <input id="photo" type="file" accept="image/*">
 
   <button onclick="submitReport()">Submit</button>
 </div>
@@ -111,8 +130,7 @@ import {
   update
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-/* FIREBASE */
-const app = initializeApp({
+const firebaseConfig = {
   apiKey: "AIzaSyDKpUKGcRpGCw9z03tVKbuWJiqSEk8p8hM",
   authDomain: "streetsignal-0409.firebaseapp.com",
   databaseURL: "https://streetsignal-0409-default-rtdb.europe-west1.firebasedatabase.app",
@@ -120,20 +138,20 @@ const app = initializeApp({
   storageBucket: "streetsignal-0409.firebasestorage.app",
   messagingSenderId: "839732414610",
   appId: "1:839732414610:web:77851feed591796028be4b"
-});
+};
 
+const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const reportsRef = ref(db,"reports");
+const reportsRef = ref(db, "reports");
 
-/* MAP */
-const map = L.map("map").setView([-26.2041,28.0473],11);
+const map = L.map('map').setView([-26.2041, 28.0473], 11);
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-  attribution:"&copy; OpenStreetMap"
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution:'&copy; OpenStreetMap'
 }).addTo(map);
 
-let markers=[];
-let gpsMarker=null;
+let markers = [];
+let gpsMarker = null;
 
 /* CLEAR */
 function clearMarkers(){
@@ -142,124 +160,124 @@ function clearMarkers(){
 }
 
 /* COLOR */
-function getColor(t){
-  t=(t||"").toLowerCase();
-  if(t.includes("road")) return "red";
-  if(t.includes("water")) return "blue";
-  if(t.includes("electric")) return "yellow";
+function getColor(type){
+  type=(type||"").toLowerCase();
+  if(type.includes("road")) return "red";
+  if(type.includes("water")) return "blue";
+  if(type.includes("electric")) return "yellow";
   return "green";
 }
 
-/* LOAD DATA */
-onValue(reportsRef,snap=>{
+/* LOAD */
+onValue(reportsRef,(snap)=>{
 
   clearMarkers();
 
-  const data=snap.val();
+  const data = snap.val();
   if(!data) return;
 
   Object.entries(data).forEach(([id,item])=>{
 
     if(!item.lat||!item.lng) return;
 
-    const c=getColor(item.issueType);
+    const color=getColor(item.issueType);
     const resolved=item.status==="resolved";
 
     const icon=L.icon({
       iconUrl:
-        c==="red"
-        ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
-        : c==="blue"
-        ? "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-        : c==="yellow"
-        ? "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
-        : "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+        color==="red"?"https://maps.google.com/mapfiles/ms/icons/red-dot.png":
+        color==="blue"?"https://maps.google.com/mapfiles/ms/icons/blue-dot.png":
+        color==="yellow"?"https://maps.google.com/mapfiles/ms/icons/yellow-dot.png":
+        "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
       iconSize:[32,32],
       iconAnchor:[16,32]
     });
 
-    const m=L.marker([item.lat,item.lng],{icon}).addTo(map);
+    const marker=L.marker([item.lat,item.lng],{icon}).addTo(map);
 
-    if(resolved){
-      m._icon?.classList.add("resolved");
-    }
+    if(resolved) marker._icon?.classList.add("resolved");
 
-    m.issueType=item.issueType;
+    marker.issueType=item.issueType||"";
 
-    m.bindPopup(`
-      <b>${item.issueType}</b><br><br>
+    marker.bindPopup(`
+      <b>${item.issueType}</b><br>
+      <b>Status:</b> ${item.status||"pending"}<br><br>
 
       ${item.description||""}<br><br>
 
       ${item.photo?`<img src="${item.photo}" width="180"><br><br>`:""}
 
       <b>Location:</b> ${item.location}<br>
-      <b>GPS:</b> ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}<br>
-      <b>Status:</b> ${item.status||"pending"}<br><br>
+      <b>GPS:</b> ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}<br><br>
 
       <button onclick="markResolved('${id}')">Mark Resolved</button>
     `);
 
-    markers.push(m);
+    markers.push(marker);
   });
-
 });
 
 /* SUBMIT FIXED */
 window.submitReport=function(){
 
-  const type=issueType.value.trim();
-  const desc=description.value.trim();
-  const loc=location.value.trim();
-  const file=photo.files[0];
+  const type=document.getElementById("issueType").value.trim();
+  const desc=document.getElementById("description").value.trim();
+  const loc=document.getElementById("location").value.trim();
+  const file=document.getElementById("photo").files[0];
 
-  if(!type || !loc){
-    alert("Fill issue type + location");
+  if(!type){
+    alert("Enter issue type");
     return;
   }
 
-  fetch("https://nominatim.openstreetmap.org/search?format=json&q="+encodeURIComponent(loc))
-  .then(r=>r.json())
-  .then(d=>{
+  const save=(lat,lng)=>{
 
-    if(!d.length){
-      alert("Location not found");
-      return;
-    }
-
-    const lat=parseFloat(d[0].lat);
-    const lng=parseFloat(d[0].lon);
-
-    const save=(img="")=>{
+    const finish=(photo="")=>{
       push(reportsRef,{
         issueType:type,
         description:desc,
-        location:loc,
-        lat,lng,
-        photo:img,
+        location:loc||"Unknown",
+        lat,
+        lng,
+        photo,
         status:"pending",
         createdAt:Date.now()
       });
 
       alert("Submitted ✅");
 
-      issueType.value="";
-      description.value="";
-      location.value="";
-      photo.value="";
+      document.getElementById("issueType").value="";
+      document.getElementById("description").value="";
+      document.getElementById("location").value="";
+      document.getElementById("photo").value="";
     };
 
-    if(!file){
-      save("");
-      return;
-    }
+    if(!file){ finish(""); return; }
 
     const reader=new FileReader();
-    reader.onload=()=>save(reader.result);
+    reader.onload=()=>finish(reader.result);
     reader.readAsDataURL(file);
+  };
 
-  });
+  if(loc){
 
+    fetch("https://nominatim.openstreetmap.org/search?format=json&q="+encodeURIComponent(loc))
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.length) save(parseFloat(d[0].lat),parseFloat(d[0].lon));
+      else gps();
+    })
+    .catch(()=>gps());
+
+  } else gps();
+
+  function gps(){
+    navigator.geolocation.getCurrentPosition(pos=>{
+      save(pos.coords.latitude,pos.coords.longitude);
+    },()=>{
+      alert("Enable GPS or enter location");
+    });
+  }
 };
 
 /* RESOLVE */
@@ -267,11 +285,9 @@ window.markResolved=function(id){
   update(ref(db,"reports/"+id),{status:"resolved"});
 };
 
-/* GPS FIXED */
+/* GPS */
 window.useMyLocation=function(){
-
   navigator.geolocation.getCurrentPosition(pos=>{
-
     const lat=pos.coords.latitude;
     const lng=pos.coords.longitude;
 
@@ -280,54 +296,49 @@ window.useMyLocation=function(){
     if(gpsMarker) map.removeLayer(gpsMarker);
 
     gpsMarker=L.marker([lat,lng])
-      .addTo(map)
-      .bindPopup("📡 You are here")
-      .openPopup();
+    .addTo(map)
+    .bindPopup("📡 You are here")
+    .openPopup();
 
-  },()=>alert("Enable location permissions"));
-
+  });
 };
 
-/* FILTER FIXED */
+/* FILTER */
 window.filterMarkers=function(type){
 
   type=(type||"all").toLowerCase();
 
   markers.forEach(m=>{
-
     const match=(m.issueType||"").toLowerCase();
 
     const show=type==="all"||match.includes(type);
 
     if(show) map.addLayer(m);
     else map.removeLayer(m);
-
   });
-
 };
 
-/* 🔥 FIXED CONTROL (THIS WAS THE BUG BEFORE) */
+/* UI */
 const control=L.control({position:"topright"});
 
 control.onAdd=function(){
-
   const div=L.DomUtil.create("div","filter-box");
 
   div.innerHTML=`
     <b>Filters</b><br>
 
-    <button onclick="filterMarkers('all')">All</button>
-    <button onclick="filterMarkers('road')">Road</button>
-    <button onclick="filterMarkers('water')">Water</button>
-    <button onclick="filterMarkers('electric')">Electric</button>
+    <button onclick="filterMarkers('all')">🌍 All</button>
+    <button onclick="filterMarkers('road')"><span class="dot red"></span>Road</button>
+    <button onclick="filterMarkers('water')"><span class="dot blue"></span>Water</button>
+    <button onclick="filterMarkers('electric')"><span class="dot yellow"></span>Electric</button>
 
     <hr>
 
     <b>Legend</b><br>
-    🔴 Road<br>
-    🔵 Water<br>
-    🟡 Electricity<br>
-    🟢 Other
+    <span class="dot red"></span>Road<br>
+    <span class="dot blue"></span>Water<br>
+    <span class="dot yellow"></span>Electric<br>
+    <span class="dot green"></span>Other
   `;
 
   return div;
@@ -336,6 +347,5 @@ control.onAdd=function(){
 control.addTo(map);
 
 </script>
-
 </body>
 </html>
