@@ -164,21 +164,59 @@ const reportsRef = ref(db,"reports");
 // LOGIN
 // ======================
 
-window.login=function(){
+window.login = function () {
 
-  const password=document.getElementById("password").value;
+  const password = document.getElementById("password").value;
 
-  // CHANGE THIS PASSWORD
-  if(password==="Signal123"){
+  if (password === "Signal123") {
 
-    document.getElementById("loginBox").style.display="none";
-    document.getElementById("dashboard").style.display="block";
+    // save login session
+    localStorage.setItem("streetSignalAuth", "true");
 
-  }else{
+    // refresh counter
+    localStorage.setItem("streetSignalRefresh", "0");
+
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+
+  } else {
     alert("Wrong password");
   }
 };
 
+// ======================
+// AUTO LOGIN MEMORY
+// ======================
+
+const auth = localStorage.getItem("streetSignalAuth");
+
+if (auth === "true") {
+
+  let refreshes = parseInt(
+    localStorage.getItem("streetSignalRefresh") || "0"
+  );
+
+  refreshes++;
+
+  localStorage.setItem(
+    "streetSignalRefresh",
+    refreshes
+  );
+
+  // allow 5 refreshes
+  if (refreshes <= 5) {
+
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+
+  } else {
+
+    // force logout
+    localStorage.removeItem("streetSignalAuth");
+    localStorage.removeItem("streetSignalRefresh");
+
+  }
+}  
 
 // ======================
 // LOAD REPORTS
