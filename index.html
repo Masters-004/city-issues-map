@@ -201,16 +201,15 @@ onValue(reportsRef,(snap)=>{
 
     marker.bindPopup(`
       <b>${item.issueType}</b><br>
-      <b>Status:</b> ${item.status||"pending"}<br><br>
-
+      
       ${item.description||""}<br><br>
 
       ${item.photo?`<img src="${item.photo}" width="180"><br><br>`:""}
 
       <b>Location:</b> ${item.location}<br>
       <b>GPS:</b> ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}<br><br>
-
-      <button onclick="markResolved('${id}')">Mark Resolved</button>
+      
+      <b>Status:</b> ${item.status||"pending"}<br><br>
     `);
 
     markers.push(marker);
