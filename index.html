@@ -95,7 +95,100 @@
       opacity:0.5;
       filter:grayscale(80%);
     }
+/* =========================
+   MOBILE RESPONSIVE FIX
+========================= */
 
+@media screen and (max-width: 768px) {
+
+  /* MAP */
+  #map {
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* TITLE */
+  .title-box {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    font-size: 15px;
+    padding: 8px 10px;
+  }
+
+  /* GPS BUTTON */
+  .gps-btn {
+    top: 60px;
+    left: 10px;
+    padding: 8px 10px;
+    font-size: 12px;
+    z-index: 1100;
+  }
+
+  /* REPORT FORM */
+  .report-box {
+    width: 88%;
+    right: 6%;
+    bottom: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+
+  .report-box input,
+  .report-box button {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  /* FILTER BOX */
+  .filter-box {
+    font-size: 12px;
+    min-width: 140px;
+    padding: 10px;
+    margin-top: 110px;
+    margin-right: 5px;
+  }
+
+  .filter-box button {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  /* LEAFLET ZOOM BUTTONS */
+  .leaflet-top.leaflet-left {
+    top: 120px;
+    left: 10px;
+  }
+
+  .leaflet-control-zoom a {
+    width: 34px;
+    height: 34px;
+    line-height: 34px;
+    font-size: 18px;
+  }
+
+  /* POPUPS */
+  .leaflet-popup-content {
+    width: 220px !important;
+    font-size: 13px;
+  }
+
+  .leaflet-popup-content img {
+    width: 100%;
+    height: auto;
+  }
+
+  /* STOP PAGE SCROLL CHAOS */
+  body {
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+
+}
+    
   </style>
 </head>
 
