@@ -1,91 +1,121 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>StreetSignal Admin Panel</title>
-
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreetSignal Admin</title>
 
   <style>
-
     body{
+      font-family:Arial;
+      background:#f4f4f4;
       margin:0;
       padding:20px;
-      background:#f2f2f2;
-      font-family:Arial,sans-serif;
     }
 
-    h1{
-      margin-bottom:20px;
+    .login-box,
+    .dashboard{
+      max-width:900px;
+      margin:auto;
     }
 
-    .report-card{
+    .login-box{
       background:white;
-      padding:15px;
+      padding:30px;
       border-radius:12px;
-      margin-bottom:20px;
-      box-shadow:0 0 10px rgba(0,0,0,0.15);
+      margin-top:100px;
+      box-shadow:0 0 10px rgba(0,0,0,0.2);
+      text-align:center;
     }
 
-    .report-card img{
+    input{
       width:100%;
-      max-width:300px;
-      border-radius:10px;
+      padding:12px;
       margin-top:10px;
-      margin-bottom:10px;
-    }
-
-    .status{
-      display:inline-block;
-      padding:5px 10px;
-      border-radius:6px;
-      font-size:13px;
-      font-weight:bold;
-      margin-top:10px;
-    }
-
-    .pending{
-      background:#ffcc00;
-    }
-
-    .resolved{
-      background:#33cc66;
-      color:white;
+      border-radius:8px;
+      border:1px solid #ccc;
     }
 
     button{
-      padding:10px 15px;
+      margin-top:15px;
+      padding:12px;
+      width:100%;
       border:none;
+      background:black;
+      color:white;
       border-radius:8px;
       cursor:pointer;
-      margin-right:10px;
-      margin-top:10px;
       font-weight:bold;
     }
 
-    .resolve-btn{
-      background:#28a745;
-      color:white;
+    .card{
+      background:white;
+      padding:15px;
+      border-radius:10px;
+      margin-bottom:15px;
+      box-shadow:0 0 8px rgba(0,0,0,0.1);
     }
 
-    .delete-btn{
-      background:#dc3545;
-      color:white;
+    .resolved{
+      opacity:0.6;
+      background:#e8ffe8;
     }
 
+    .stats{
+      display:flex;
+      gap:15px;
+      margin-bottom:20px;
+    }
+
+    .stat-box{
+      flex:1;
+      background:white;
+      padding:20px;
+      border-radius:10px;
+      text-align:center;
+      box-shadow:0 0 8px rgba(0,0,0,0.1);
+    }
+
+    img{
+      max-width:200px;
+      border-radius:10px;
+      margin-top:10px;
+    }
   </style>
 </head>
 
 <body>
 
-<h1>🛠️ StreetSignal Admin Dashboard</h1>
+<div class="login-box" id="loginBox">
+  <h2>🔐 StreetSignal Admin</h2>
 
-<div id="reportsContainer"></div>
+  <input type="password" id="password" placeholder="Enter admin password">
+
+  <button onclick="login()">Login</button>
+</div>
+
+<div class="dashboard" id="dashboard" style="display:none;">
+
+  <h1>🛠️ StreetSignal Admin Dashboard</h1>
+
+  <!-- STATS -->
+  <div class="stats">
+
+    <div class="stat-box">
+      <h2 id="pendingCount">0</h2>
+      Pending Reports
+    </div>
+
+    <div class="stat-box">
+      <h2 id="resolvedCount">0</h2>
+      Resolved Reports
+    </div>
+
+  </div>
+
+  <div id="reports"></div>
+
+</div>
 
 <script type="module">
-
-// ==========================
-// FIREBASE IMPORTS
-// ==========================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
@@ -93,175 +123,155 @@ import {
   getDatabase,
   ref,
   onValue,
-  remove,
-  update
-}
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-
-// ==========================
-// FIREBASE CONFIG
-// ==========================
+  update,
+  remove
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
-
   apiKey: "AIzaSyDKpUKGcRpGCw9z03tVKbuWJiqSEk8p8hM",
-
   authDomain: "streetsignal-0409.firebaseapp.com",
-
-  databaseURL:
-  "https://streetsignal-0409-default-rtdb.europe-west1.firebasedatabase.app",
-
+  databaseURL: "https://streetsignal-0409-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "streetsignal-0409",
-
-  storageBucket:
-  "streetsignal-0409.firebasestorage.app",
-
+  storageBucket: "streetsignal-0409.firebasestorage.app",
   messagingSenderId: "839732414610",
+  appId: "1:839732414610:web:77851feed591796028be4b"
+};
 
-  appId:
-  "1:839732414610:web:77851feed591796028be4b"
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const reportsRef = ref(db,"reports");
+
+
+// ======================
+// LOGIN
+// ======================
+
+window.login=function(){
+
+  const password=document.getElementById("password").value;
+
+  // CHANGE THIS PASSWORD
+  if(password==="StreetSignal123"){
+
+    document.getElementById("loginBox").style.display="none";
+    document.getElementById("dashboard").style.display="block";
+
+  }else{
+    alert("Wrong password");
+  }
 };
 
 
-// ==========================
-// INIT FIREBASE
-// ==========================
+// ======================
+// LOAD REPORTS
+// ======================
 
-const app = initializeApp(firebaseConfig);
+onValue(reportsRef,(snap)=>{
 
-const database = getDatabase(app);
+  const reportsDiv=document.getElementById("reports");
 
-const reportsRef = ref(database, "reports");
+  reportsDiv.innerHTML="";
 
-const container =
-document.getElementById("reportsContainer");
+  const data=snap.val();
 
-
-// ==========================
-// LOAD REPORTS LIVE
-// ==========================
-
-onValue(reportsRef, (snapshot) => {
-
-  container.innerHTML = "";
-
-  const data = snapshot.val();
-
-  if (!data) {
-
-    container.innerHTML =
-    "<p>No reports found.</p>";
-
+  if(!data){
+    reportsDiv.innerHTML="No reports found.";
     return;
   }
 
-  Object.entries(data).reverse().forEach(([id, item]) => {
+  let pending=0;
+  let resolved=0;
 
-    const card =
-    document.createElement("div");
+  Object.entries(data).reverse().forEach(([id,item])=>{
 
-    card.className = "report-card";
+    const status=item.status||"pending";
 
-    const status =
-    item.status || "pending";
+    if(status==="resolved") resolved++;
+    else pending++;
 
-    card.innerHTML = `
+    const div=document.createElement("div");
 
-      <h3>${item.issueType || "Issue"}</h3>
+    div.className="card";
 
-      <p>
-        <b>Description:</b><br>
-        ${item.description || "No description"}
-      </p>
+    if(status==="resolved"){
+      div.classList.add("resolved");
+    }
 
-      <p>
-        <b>Location:</b><br>
-        ${item.location || "Unknown"}
-      </p>
+    const date = item.createdAt
+      ? new Date(item.createdAt).toLocaleString()
+      : "Unknown";
 
-      <p>
-        <b>GPS:</b><br>
-        ${item.lat || "-"},
-        ${item.lng || "-"}
-      </p>
+    div.innerHTML=`
 
-      <p>
-        <b>Submitted:</b><br>
-        ${
-          item.createdAt
-          ? new Date(item.createdAt)
-            .toLocaleString()
-          : "Unknown"
-        }
-      </p>
+      <h3>${item.issueType}</h3>
 
-      ${
-        item.photo
+      <b>Description:</b><br>
+      ${item.description||"No description"}<br><br>
+
+      <b>Location:</b><br>
+      ${item.location}<br><br>
+
+      <b>GPS:</b><br>
+      ${item.lat}, ${item.lng}<br><br>
+
+      <b>Status:</b>
+      ${status}<br><br>
+
+      <b>Submitted:</b><br>
+      ${date}<br><br>
+
+      ${item.photo
         ? `<img src="${item.photo}">`
         : ""
       }
 
-      <br>
+      <br><br>
 
-      <span class="status ${status}">
-        ${status.toUpperCase()}
-      </span>
-
-      <br>
-
-      <button
-        class="resolve-btn"
-        onclick="resolveReport('${id}')">
-
+      <button onclick="markResolved('${id}')">
         ✅ Mark Resolved
-
       </button>
 
-      <button
-        class="delete-btn"
-        onclick="deleteReport('${id}')">
-
+      <button onclick="deleteReport('${id}')">
         ❌ Delete
-
       </button>
 
     `;
 
-    container.appendChild(card);
+    reportsDiv.appendChild(div);
 
   });
+
+  document.getElementById("pendingCount").innerText=pending;
+  document.getElementById("resolvedCount").innerText=resolved;
 
 });
 
 
-// ==========================
-// RESOLVE REPORT
-// ==========================
+// ======================
+// RESOLVE
+// ======================
 
-window.resolveReport = function(id){
+window.markResolved=function(id){
 
-  update(ref(database, "reports/" + id), {
-
-    status: "resolved"
-
+  update(ref(db,"reports/"+id),{
+    status:"resolved"
   });
 
 };
 
 
-// ==========================
-// DELETE REPORT
-// ==========================
+// ======================
+// DELETE
+// ======================
 
-window.deleteReport = function(id){
+window.deleteReport=function(id){
 
-  const confirmDelete =
-  confirm("Delete this report?");
+  if(confirm("Delete this report?")){
 
-  if(!confirmDelete) return;
+    remove(ref(db,"reports/"+id));
 
-  remove(ref(database, "reports/" + id));
+  }
 
 };
 
