@@ -94,27 +94,41 @@
 
 <div class="dashboard" id="dashboard" style="display:none;">
 
-  <h1>🛠️ StreetSignal Admin Dashboard</h1>
+  <div style="
+  background:#111;
+  color:white;
+  padding:20px;
+  border-radius:12px;
+  margin-bottom:20px;
+">
+  <h1 style="margin:0;">
+    🏛️ StreetSignal Municipal Operations Center
+  </h1>
 
+  <div style="margin-top:8px; opacity:0.8;">
+    Real-time community infrastructure monitoring dashboard
+  </div>
+</div>
   <!-- STATS -->
   <div class="stats">
 
-    <div class="stat-box">
-      <h2 id="pendingCount">0</h2>
-      Pending Reports
-    </div>
-
-    <div class="stat-box">
-      <h2 id="resolvedCount">0</h2>
-      Resolved Reports
-    </div>
-
+  <div class="stat-box">
+    <h2 id="pendingCount">0</h2>
+    🚨 Pending Issues
   </div>
 
-  <div id="reports"></div>
+  <div class="stat-box">
+    <h2 id="resolvedCount">0</h2>
+    ✅ Resolved Issues
+  </div>
+
+  <div class="stat-box">
+    <h2 id="totalCount">0</h2>
+    📍 Total Reports
+  </div>
 
 </div>
-
+  
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -181,18 +195,24 @@ onValue(reportsRef,(snap)=>{
   }
 
   let pending=0;
-  let resolved=0;
+let resolved=0;
+let total=0;
 
   Object.entries(data).reverse().forEach(([id,item])=>{
 
     const status=item.status||"pending";
-
+    total++;
     if(status==="resolved") resolved++;
     else pending++;
 
     const div=document.createElement("div");
 
     div.className="card";
+
+div.style.borderLeft =
+  status === "resolved"
+  ? "6px solid green"
+  : "6px solid red";
 
     if(status==="resolved"){
       div.classList.add("resolved");
@@ -278,7 +298,8 @@ const date = item.createdAt
 
   document.getElementById("pendingCount").innerText=pending;
   document.getElementById("resolvedCount").innerText=resolved;
-
+  document.getElementById("totalCount").innerText=total;
+  
 });
 
 
